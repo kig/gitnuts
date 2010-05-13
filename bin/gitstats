@@ -1,0 +1,133 @@
+#!/usr/bin/ruby
+require 'time'
+
+Changes = Struct.new(:author, :date, :added, :deleted, :changed, :filename)
+
+def get_commits(re=nil)
+  commits = `git log --numstat -M -C`.split(/^commit/)
+  if re
+    commits.find_all{|c| c =~ re }.reject{|c| c.empty? }
+  else
+    commits.reject{|c| c.empty? }
+  end
+end
+
+def field_value(field, commit)
+  value = commit.grep(/^#{field}:/)[0]
+  value.split(/\s+/,2)[1].strip
+end
+
+def get_changes(commit)
+  date = Time.parse(field_value("Date", commit))
+  author = field_value("Author", commit)
+  files = commit.grep(/^\d/)
+  files.map{|f| 
+    add,rem,name = f.split(/\s+/,3)
+    Changes.new(author, date, add.to_i, rem.to_i, add.to_i+rem.to_i, name)
+  }
+end
+
+def stats_for_commits(commits)
+  changes = commits.map{|c| get_changes(c)}
+  all_changes = changes.flatten
+  total_added = all_changes.inject(0){|s,i| s+i.added }
+  total_deleted = all_changes.inject(0){|s,i| s+i.deleted }
+  total_changed = total_added + total_deleted
+  commit_histogram = Hash.new{|h,k| h[k] = 0 }
+  change_histogram = Hash.new{|h,k| h[k] = 0 }
+  month_histogram = Hash.new{|h,k| h[k] = 0 }
+  time_histogram = Hash.new{|h,k| h[k] = 0 }
+  weekday_histogram = Hash.new{|h,k| h[k] = 0 }
+  changes.each{|c| commit_histogram[c.inject(0){|s,i| s+i.changed}] += 1 }
+  all_changes.each{|c|
+    change_histogram[c.changed] += 1
+    month_histogram[c.date.strftime("%Y-%m")] += c.changed
+    weekday_histogram[c.date.wday.to_s + "-" + c.date.strftime("%a")] += c.changed
+    time_histogram[c.date.hour] += c.changed
+  }
+  {'commits' => commits.size,
+   'changed files' => all_changes.size,
+   'changed files per commit' => all_changes.size.to_f / commits.size,
+   'total added lines' => total_added,
+   'total deleted lines' => total_deleted,
+   'total changed lines' => total_changed,
+   'added per commit' => total_added / commits.size.to_f,
+   'deleted per commit' => total_deleted / commits.size.to_f,
+   'changed per commit' => total_changed / commits.size.to_f,
+   'changed lines per file histogram' => change_histogram,
+   'changed lines per commit histogram' => commit_histogram,
+   'changed lines per weekday histogram' => weekday_histogram,
+   'changed lines per time of day histogram' => time_histogram,
+   'changed lines per month histogram' => month_histogram
+   }
+end
+
+def bucket_histogram(h, size=10)
+  new_h = Hash.new{|h,k| h[k] = 0}
+  h.each{|k,v| new_h[(k.to_f/size).floor * size] += v }
+  new_h
+end
+
+def print_bucket_histogram(h, step=nil, bar_size=nil)
+  step ||= 10
+  puts "Bucket size: #{step}"
+  h = bucket_histogram(h, step)
+  print_histogram(h, bar_size)
+end
+
+def print_histogram(h, bar_size=nil)
+  bar_size ||= [1.0, h.values.max.to_f / 62.0].max.to_i
+  puts "Bar step size: #{bar_size}"
+  bars = h.to_a.sort_by{|k,v| k}
+  bars.each{|k,v|
+    if v / bar_size > 0
+      puts "#{k.to_s.rjust(7)} #{"*" * (v / bar_size)} #{v}"
+    end
+  }
+  nil
+end
+
+if __FILE__ == $0
+  require 'optparse'
+  options = {}
+  opts = OptionParser.new do |opts|
+    opts.banner = "USAGE: #{$0} [options]"
+    opts.separator ""
+    opts.on("-h", "--help", "Show this message"){ puts opts.help; exit!(0) }
+    opts.on("-b", "--bucket-size NUMBER", "Set size of histogram buckets"){|b| options[:bucket_size] = b.to_i }
+    opts.on("-r", "--regexp REGEXP", "Filter the commits with the given regexp"){|r| options[:regexp] = Regexp.new(r) }
+    opts.on("-n", "--no-histograms", "Don't print histograms"){|r| options[:no_hist] = true }
+  end
+  begin
+    opts.parse!(ARGV)
+  rescue => e
+    puts opts.help; exit!(1)
+  end
+  commits = get_commits(options[:regexp])
+  stats = stats_for_commits(commits)
+  ['commits', 'changed files', 'changed files per commit',
+   'total added lines', 'total deleted lines', 'total changed lines',
+   'added per commit', 'deleted per commit', 'changed per commit'].each{|k|
+    puts "#{k.capitalize.rjust(25)}: #{stats[k]}"
+  }
+  unless options[:no_hist]
+    puts
+    puts "Changed lines per file"
+    print_bucket_histogram(stats['changed lines per file histogram'], options[:bucket_size])
+    puts
+    puts "Changed lines per commit"
+    print_bucket_histogram(stats['changed lines per commit histogram'], options[:bucket_size])
+    puts
+    puts "Changed lines per month"
+    print_histogram(stats['changed lines per month histogram'])
+    puts
+    puts "Changed lines per weekday"
+    print_histogram(stats['changed lines per weekday histogram'])
+    puts
+    puts "Changed lines per hour of day"
+    print_histogram(stats['changed lines per time of day histogram'])
+    puts
+  end
+                                
+end
+
