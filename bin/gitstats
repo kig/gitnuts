@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 require 'time'
 
-Changes = Struct.new(:author, :date, :added, :deleted, :changed, :filename)
+Changes = Struct.new(:commit, :author, :date, :added, :deleted, :changed, :filename)
 
 def get_commits(regexps=[], rejects=[])
   regexps ||= []
@@ -19,11 +19,12 @@ end
 
 def get_changes(commit)
   date = Time.parse(field_value("Date", commit))
+  commit_id = commit.strip.split("\n",2)[0]
   author = field_value("Author", commit)
   files = commit.grep(/^\d/)
   files.map{|f| 
     add,rem,name = f.split(/\s+/,3)
-    Changes.new(author, date, add.to_i, rem.to_i, add.to_i+rem.to_i, name.strip)
+    Changes.new(commit_id, author, date, add.to_i, rem.to_i, add.to_i+rem.to_i, name.strip)
   }
 end
 
@@ -102,7 +103,7 @@ if __FILE__ == $0
   opts = OptionParser.new do |opts|
     opts.banner = "USAGE: #{$0} [options]"
     opts.separator ""
-    opts.on("-h", "--help", "Show this message"){ puts opts.help; exit!(0) }
+    opts.on("-h", "--help", "Show this message"){ puts opts.help; exit(0) }
     opts.on("-b", "--bucket-size NUMBER", "Set size of histogram buckets"){|b| options[:bucket_size] = b.to_i }
     opts.on("-r", "--regexp REGEXP", "Filter the commits with the given regexp"){|r| (options[:regexp] ||= []) << Regexp.new(r) }
     opts.on("-d", "--drop-regexp REGEXP", "Reject the commits matching the given regexp"){|r| (options[:reject] ||= []) << Regexp.new(r) }
@@ -112,15 +113,15 @@ if __FILE__ == $0
   begin
     opts.parse!(ARGV)
   rescue => e
-    puts opts.help; exit!(1)
+    puts opts.help; exit(1)
   end
   commits = get_commits(options[:regexp], options[:reject])
   if options[:r_output]
-    puts "Added\tDeleted\tChanged\tDate\tFilename\tAuthor"
+    puts "Commit\tAdded\tDeleted\tChanged\tDate\tAuthor\tFilename"
     commits.map{|c| get_changes(c) }.flatten.each{|c|
-      puts("%d\t%d\t%d\t%f\t%s\t%s" % [c.added, c.deleted, c.changed, c.date.to_f, c.filename.dump, c.author.dump])
+      puts("%s\t%d\t%d\t%d\t%f\t%s\t%s" % [c.commit, c.added, c.deleted, c.changed, c.date.to_f, c.author.dump, c.filename.dump])
     }
-    exit!(0)
+    exit(0)
   end
   stats = stats_for_commits(commits)
   ['commits', 'changed files', 'changed files per commit',
