@@ -1,0 +1,21 @@
+gitstats
+--
+A small tool that munges git log output for statistics and prints them out.
+
+
+Installation:
+# [install ruby]
+$ cp bin/gitstats $wherever
+
+Basic usage:
+$ cd my_git_repo
+$ gitstats
+
+Advanced usage:
+$ gitstats --help
+$ gitstats --regexp 'Author: Bob'
+
+
+License: MIT license. Go nuts.
+
+Author: Ilmari Heikkinen <ilmari.heikkinen@gmail.com>
