@@ -1,19 +1,23 @@
-gitstats
+gitnuts
 --
 A small tool that munges git log output for statistics and prints them out.
 
 
 Installation:
 # [install ruby]
-$ cp bin/gitstats $wherever
+$ cp bin/gitnuts $wherever
 
 Basic usage:
 $ cd my_git_repo
-$ gitstats
+$ gitnuts
 
 Advanced usage:
-$ gitstats --help
-$ gitstats --regexp 'Author: Bob'
+$ gitnuts --help
+$ gitnuts --regexp 'Author: Bob'
+$ gitnuts -R > stats.data
+$ R
+> stats <- read.table("stats.data", header=TRUE)
+> plot(stats[['Date']], stats[['Changed']], type="h")
 
 
 License: MIT license. Go nuts.
