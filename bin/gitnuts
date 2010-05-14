@@ -109,6 +109,7 @@ if __FILE__ == $0
     opts.on("-d", "--drop-regexp REGEXP", "Reject the commits matching the given regexp"){|r| (options[:reject] ||= []) << Regexp.new(r) }
     opts.on("-n", "--no-histograms", "Don't print histograms"){|r| options[:no_hist] = true }
     opts.on("-R", "--r-output", "Output raw commit data in an R-friendly format"){|r| options[:r_output] = true}
+    opts.on("-S", "--sql-output", "Output raw commit data as SQL inserts"){|r| options[:sql_output] = true}
   end
   begin
     opts.parse!(ARGV)
@@ -120,6 +121,19 @@ if __FILE__ == $0
     puts "Commit\tAdded\tDeleted\tChanged\tDate\tAuthor\tFilename"
     commits.map{|c| get_changes(c) }.flatten.each{|c|
       puts("%s\t%d\t%d\t%d\t%f\t%s\t%s" % [c.commit, c.added, c.deleted, c.changed, c.date.to_f, c.author.dump, c.filename.dump])
+    }
+    exit(0)
+  end
+  if options[:sql_output]
+    def esc(s)
+      s.gsub("'", "''")
+    end
+    puts("DROP TABLE temp_commits;")
+    puts("CREATE TABLE temp_commits (commit char(40), added integer, deleted integer, changed integer, created date, author varchar(255), filename varchar(255));")
+    commits.map{|c| get_changes(c) }.flatten.each{|c|
+      puts("INSERT INTO temp_commits (commit, added, deleted, changed, created, author, filename) VALUES ('%s', %d, %d, %d, '%s', '%s', '%s');" % [
+            esc(c.commit), c.added, c.deleted, c.changed, esc(c.date.to_s), esc(c.author), esc(c.filename)
+           ])
     }
     exit(0)
   end

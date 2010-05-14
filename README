@@ -14,10 +14,19 @@ $ gitnuts
 Advanced usage:
 $ gitnuts --help
 $ gitnuts --regexp 'Author: Bob'
-$ gitnuts -R > stats.data
+
+# get commits by Bob on Feb 2010, except for the ones done on Thursdays
+$ gitnuts -r 'Author: Bob' -r ' 2010 ' -r 'Feb' -d 'Thu'
+
+$ gitnuts --r-output > stats.data
 $ R
 > stats <- read.table("stats.data", header=TRUE)
 > plot(stats[['Date']], stats[['Changed']], type="h")
+
+$ gitnuts --sql-output | psql
+$ psql
+> select author, sum(changed) from temp_commits group by author;
+
 
 
 License: MIT license. Go nuts.
