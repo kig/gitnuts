@@ -29,6 +29,7 @@ def get_changes(commit)
 end
 
 def stats_for_commits(commits)
+  round = lambda{|f| "%.1f" % f }
   changes = commits.map{|c| get_changes(c)}
   all_changes = changes.flatten
   total_added = all_changes.inject(0){|s,i| s+i.added }
@@ -54,13 +55,13 @@ def stats_for_commits(commits)
   }
   {'commits' => commits.size,
    'changed files' => all_changes.size,
-   'changed files per commit' => all_changes.size.to_f / commits.size,
+   'changed files per commit' => round[all_changes.size.to_f / commits.size],
    'total added lines' => total_added,
    'total deleted lines' => total_deleted,
    'total changed lines' => total_changed,
-   'added per commit' => total_added / commits.size.to_f,
-   'deleted per commit' => total_deleted / commits.size.to_f,
-   'changed per commit' => total_changed / commits.size.to_f,
+   'added per commit' => round[total_added / commits.size.to_f],
+   'deleted per commit' => round[total_deleted / commits.size.to_f],
+   'changed per commit' => round[total_changed / commits.size.to_f],
    'changed lines per file histogram' => change_histogram,
    'changed lines per commit histogram' => commit_histogram,
    'changed lines per weekday histogram' => weekday_histogram,
