@@ -13,7 +13,7 @@ def get_commits(regexps=[], rejects=[])
 end
 
 def field_value(field, commit)
-  value = commit.grep(/^#{field}:/)[0]
+  value = commit.split("\n").grep(/^#{field}:/)[0]
   value.split(/\s+/,2)[1].strip
 end
 
@@ -21,7 +21,7 @@ def get_changes(commit)
   date = Time.parse(field_value("Date", commit))
   commit_id = commit.strip.split("\n",2)[0]
   author = field_value("Author", commit)
-  files = commit.grep(/^\d/)
+  files = commit.split("\n").grep(/^\d/)
   files.map{|f| 
     add,rem,name = f.split(/\s+/,3)
     Changes.new(commit_id, author, date, add.to_i, rem.to_i, add.to_i+rem.to_i, name.strip)
